@@ -383,6 +383,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 			mole: {
 				name: 'Moleworm',
 				// inedible: true,
+				ideal: true,
 				meat: 0.5,
 				perish: total_day_time * 2,
 				cook: 'morsel_cooked',
@@ -712,6 +713,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 			cavebanana: {
 				//Shipwrecked calls them bananas, less confusing to go with that one (instead of Cave Banana)
 				name: 'Banana',
+				ideal: true,
 				isfruit: true,
 				fruit: 1,
 				health: healing_tiny,
@@ -986,6 +988,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 			},
 			seaweed: {
 				name: 'Seaweed',
+				ideal: true,
 				veggie: 1,
 				health: healing_tiny,
 				hunger: calories_tiny,
@@ -1205,6 +1208,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 			},
 			limpets: {
 				name: 'Limpets',
+				ideal: true,
 				fish: 0.5,
 				health: 0,
 				hunger: calories_small,
@@ -2579,7 +2583,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 					f.info += (f.recipes.reduce(reduceRecipeButton, '[|][ingredient:' + f.name + '|Recipes] '));
 				}
 			} else {
-				f.info += ('[|]cannot be added to crock pot');
+				f.info += (f.info ? '[|]' : '') + ('cannot be added to crock pot');
 			}
 			if (f.note) {
 				f.info += ('[|]' + f.note);
@@ -2604,7 +2608,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 			var size = 4, index = 1, current = startPos || [0, 0, 0, 0], check, max = 0, iter = 0;
 			return function (batch) {
 				var overflow;
-				while (batch-- && index < length) {
+				while (batch-- && index <= length) {
 					callback(current);
 					current[0]++;
 					overflow = 0;
@@ -3045,10 +3049,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 						makableTable.update();
 						e.preventDefault();
 					},
+					excludedRecipes = [],
+					excludedRecipesElements = [],
 					setRecipe = function (e) {
 						if (selectedRecipeElement) {
 							selectedRecipeElement.className = '';
 						}
+						for (var i = 0; i < excludedRecipesElements.length; i++) {
+							excludedRecipesElements[i].className = '';
+						}
+						excludedRecipes.length = 0;
+						excludedRecipesElements.length = 0;
 						if (selectedRecipe === e.target.dataset.recipe) {
 							selectedRecipeElement = null;
 							selectedRecipe = null;
@@ -3058,6 +3069,26 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 							e.target.className = 'selected';
 						}
 						makableTable.update();
+					},
+					excludeRecipe = function (e) {
+						if (selectedRecipeElement) {
+							selectedRecipeElement.className = '';
+							selectedRecipeElement = null;
+							selectedRecipe = null;
+						}
+
+						var index = excludedRecipesElements.indexOf(e.target);
+						if (index !== -1) {
+							excludedRecipes.splice(index, 1);
+							excludedRecipesElements.splice(index, 1);
+							e.target.className = '';
+						} else {
+							excludedRecipes.push(e.target.dataset.recipe);
+							excludedRecipesElements.push(e.target);
+							e.target.className = 'excluded';
+						}
+						makableTable.update();
+						e.preventDefault();
 					};
 				//TODO: optimize so much around this
 				if (i === null) {
@@ -3089,7 +3120,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 					null,
 					null,
 					function (data) {
-						return (!selectedRecipe || data.recipe.name === selectedRecipe) && (!excludesIngredients.length || !data.ingredients.some(checkExcludes)) && (!usesIngredients.length || usesIngredients.every(checkIngredient, data.ingredients));
+						return (!selectedRecipe || data.recipe.name === selectedRecipe) && (excludedRecipes.length === 0 || excludedRecipes.indexOf(data.recipe.name) === -1) && (!excludesIngredients.length || !data.ingredients.some(checkExcludes)) && (!usesIngredients.length || usesIngredients.every(checkIngredient, data.ingredients));
 					},
 					0,
 					15
@@ -3136,6 +3167,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 						//TODO: optimize
 						img.dataset.recipe = makableRecipes[i];
 						img.addEventListener('click', setRecipe, false);
+						img.addEventListener('contextmenu', excludeRecipe, false);
 						img.title = data.recipe.name;
 						if (i < makableRecipe.childNodes.length) {
 							makableRecipe.insertBefore(img, makableRecipe.childNodes[i]);
@@ -3178,11 +3210,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 						makableSummary.firstChild.textContent = 'Found ' + made.length + ' valid recipes..';
 						makableTable.update();
 					}*/
-					makableSummary.firstChild.textContent = 'Found ' + made.length + ' valid recipes.. (you can change tabs during this process)';
+					makableSummary.firstChild.textContent = 'Found ' + made.length + ' valid recipes.. (you can change Food Guide tabs during this process)';
 					//makableTable.update();
 				}, function () { //computation finished
 					makableTable.setMaxRows(30);
-					makableSummary.firstChild.textContent = 'Found ' + made.length + ' valid recipes. Showing top 30 for selected recipe using all selected ingredients. Right-click to exclude ingredients.';
+					makableSummary.firstChild.textContent = 'Found ' + made.length + ' valid recipes. Showing top 30 for selected recipe using all selected ingredients. Right-click to exclude recipes or ingredients.';
 				});
 			}, false);
 			return makableButton;
@@ -3223,7 +3255,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 			slotElement.title = item ? item.name : '';
 		},
 		getSlot = function (slotElement) {
-			return food[slotElement.dataset.id] || recipes[slotElement.dataset.id] || null;
+			return slotElement && (food[slotElement.dataset.id] || recipes[slotElement.dataset.id] || null);
 		};
 
 	(function () {
